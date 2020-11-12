@@ -6,7 +6,7 @@ import argparse
 # Command line arguments
 parser = argparse.ArgumentParser(description='Create one or many random BattleShip game state ...')
 parser.add_argument('-p', '--print', type=bool, default=False, required=False)
-parser.add_argument('-n', '--numInitialStates', type=int, default=1, required=False)
+parser.add_argument('-n', '--numInitialStates', type=int, default=50000, required=False)
 parser.add_argument('-s', '--numHitToSimulate', type=int, default=50, required=False)
 parser.add_argument('-c', '--minimumChanceToHitABoat', type=float, default=0.33, required=False)
 args = parser.parse_args()
