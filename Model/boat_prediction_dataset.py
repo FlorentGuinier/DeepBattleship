@@ -11,25 +11,18 @@ class BoatPredictionDataset(Dataset):
         self.images_names = sorted(os.listdir(main_dir))
 
     def __len__(self):
-        return len(self.total_imgs)
+        return len(self.images_names)
 
     def __getitem__(self, idx):
         image_path = os.path.join(self.main_dir, self.images_names[idx])
         image = Image.open(image_path)
         Y = self.to_tensor(image)
 
-        # remove un hit boat definition from X (that is what we want to predict)
+        # remove un-hit boat definition from X (that is what we want to predict)
         X = Y.detach().clone()
         X[0, :, :] = X[0, :, :] * X[2, :, :]
 
-        sample = [X, Y]
-        return sample
-
-#test code
-if True:
-    dataset = BoatPredictionDataset()
-    X, Y = dataset[42]
-    result1 = to_pil_image(X)
-    result2 = to_pil_image(Y)
-    result1.show()
-    result2.show()
+        return {
+            'X': X,
+            'Y': Y
+        }
