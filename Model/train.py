@@ -30,7 +30,7 @@ def eval_net(net, loader, device):
             with torch.no_grad():
                 targets_pred = net(imgs)
 
-            tot += F.mse_loss(targets_pred, targets).item()
+            tot += F.binary_cross_entropy_with_logits(targets_pred, targets).item()
             pbar.update()
 
     net.train()
@@ -48,8 +48,8 @@ def train_net(net,
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
-    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
-    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True, drop_last=True)
+    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=True)
 
     writer = SummaryWriter(comment=f'LR_{lr}_BS_{batch_size}')
     global_step = 0
@@ -65,8 +65,8 @@ def train_net(net,
         ''')
 
     optimizer = optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8, momentum=0.9)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-    criterion = nn.MSELoss(reduction='sum')
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=2)
+    criterion = nn.BCEWithLogitsLoss()
 
     for epoch in range(epochs):
         net.train()
@@ -98,9 +98,10 @@ def train_net(net,
                     val_score = eval_net(net, val_loader, device)
                     scheduler.step(val_score)
                     writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
-                    logging.info('Validation loss: {}'.format(val_score))
+                    logging.info('Validation BCE with logit loss: {}'.format(val_score))
                     writer.add_scalar('Loss/test', val_score, global_step)
-                    writer.add_images('images', imgs, global_step)
+                    writer.add_images('sources', imgs, global_step)
+                    writer.add_images('targets', targets, global_step)
                     writer.add_images('target_preds', target_preds, global_step)
 
         if save_cp:
@@ -120,9 +121,9 @@ def get_args():
     parser = argparse.ArgumentParser(description='Train boat prediction net')
     parser.add_argument('-e', '--epochs', type=int, default=5, help='Number of epochs')
     parser.add_argument('-b', '--batchsize', type=int, default=64, help='Batch size')
-    parser.add_argument('-l', '--learningrate', type=float, default=0.0001, help='Learning rate')
+    parser.add_argument('-l', '--learningrate', type=float, default=0.001, help='Learning rate')
     parser.add_argument('-f', '--load', type=str, default=False, help='Load model from a .pth file')
-    parser.add_argument('-v', '--validation', type=float, default=10.0, help='Percent of the data that is used as validation (0-100)')
+    parser.add_argument('-v', '--validation', type=float, default=1.0, help='Percent of the data that is used as validation (0-100)')
 
     return parser.parse_args()
 

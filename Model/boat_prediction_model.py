@@ -27,7 +27,7 @@ class BoatPredictionUNet(nn.Module):
         self.dconv_up2 = double_conv(64 + 64, 64, 32)
         self.dconv_up1 = double_conv(32 + 32, 32, 32)
 
-        self.conv_last = nn.Conv2d(32, 3, 1)
+        self.conv_last = nn.Conv2d(32, 1, 1)
 
         self.maxpool = nn.MaxPool2d(2)
         self.upsampleSize2 = nn.Upsample(size=2)
@@ -60,6 +60,6 @@ class BoatPredictionUNet(nn.Module):
         x = torch.cat([x, conv1], dim=1) # -> 64 x10x10
         x = self.dconv_up1(x)            # -> 32 x10x10
 
-        out = self.conv_last(x)          # -> 3 x10x10
+        out = self.conv_last(x)          # -> 1  x10x10
 
         return out
