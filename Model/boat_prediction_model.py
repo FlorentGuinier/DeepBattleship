@@ -5,9 +5,9 @@ import torch.nn as nn
 def double_conv(in_channels, out_channels_conv1, out_channels_conv2):
     return nn.Sequential(
         nn.Conv2d(in_channels, out_channels_conv1, 3, padding=1),
-        nn.ReLU(inplace=True),
+        nn.LeakyReLU(inplace=True),
         nn.Conv2d(out_channels_conv1, out_channels_conv2, 3, padding=1),
-        nn.ReLU(inplace=True)
+        nn.LeakyReLU(inplace=True)
     )
 
 
