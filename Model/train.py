@@ -119,9 +119,9 @@ def train_net(net,
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train boat prediction net')
-    parser.add_argument('-e', '--epochs', type=int, default=5, help='Number of epochs')
+    parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs')
     parser.add_argument('-b', '--batchsize', type=int, default=64, help='Batch size')
-    parser.add_argument('-l', '--learningrate', type=float, default=0.001, help='Learning rate')
+    parser.add_argument('-l', '--learningrate', type=float, default=0.0001, help='Learning rate')
     parser.add_argument('-f', '--load', type=str, default=False, help='Load model from a .pth file')
     parser.add_argument('-v', '--validation', type=float, default=1.0, help='Percent of the data that is used as validation (0-100)')
 
