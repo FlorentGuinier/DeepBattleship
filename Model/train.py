@@ -69,7 +69,6 @@ def train_net(net,
         net.train()
         perm = torch.randperm(n_train, device=device)
 
-        numItemSinceVal = 0
         epoch_loss = 0
         with tqdm(total=n_train, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
             for i in range(0, n_train, batch_size):
@@ -87,22 +86,16 @@ def train_net(net,
 
                 pbar.update(imgs.shape[0])
                 global_step += 1
-                numItemSinceVal += imgs.shape[0]
-                if numItemSinceVal > 300000:### Num item before validation
-                    numItemSinceVal = 0
-                    val_score = eval_net(net, states, val_idx, batch_size, device)
-                    logging.info('Validation BCE with logit loss: {}'.format(val_score))
-                    writer.add_scalar('Loss/test', val_score, global_step)
-                    writer.add_images('sources', imgs, global_step)
-                    writer.add_images('targets', targets, global_step)
-                    writer.add_images('target_preds', target_preds, global_step)
 
-        # the scheduler steps once per epoch: stepping it per in-epoch validation collapses the LR
+        # the scheduler steps once per epoch: stepping it more often collapses the LR
         val_score = eval_net(net, states, val_idx, batch_size, device)
         scheduler.step(val_score)
         logging.info('Epoch {} validation BCE with logit loss: {}'.format(epoch + 1, val_score))
         writer.add_scalar('Loss/test', val_score, global_step)
         writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
+        writer.add_images('sources', imgs, global_step)
+        writer.add_images('targets', targets, global_step)
+        writer.add_images('target_preds', target_preds, global_step)
 
         if save_cp:
             try:
