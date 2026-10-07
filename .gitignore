@@ -1,5 +1,6 @@
-﻿.idea
+.idea
 Data
 Model/runs
-Model/__pycache__.venv
+Model/__pycache__
 Model/Checkpoints
+.venv
