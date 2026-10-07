@@ -6,34 +6,26 @@ from tqdm import tqdm
 from boat_prediction_model import *
 from boat_prediction_dataset import *
 
+import numpy as np
 import torch
 from torch import optim
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import DataLoader, random_split
 
 dir_checkpoint = 'Checkpoints/'
 
-def eval_net(net, loader, device):
+def eval_net(net, states, val_idx, batch_size, device):
     net.eval()
-    n_val = len(loader)  # the number of batch
     tot = 0
-
-    with tqdm(total=n_val, desc='Validation round', unit='batch', leave=False) as pbar:
-        for batch in loader:
-            imgs, targets = batch['X'], batch['Y']
-            imgs = imgs.to(device=device, dtype=torch.float32)
-            targets = targets.to(device=device, dtype=torch.float32)
-
-            with torch.no_grad():
-                targets_pred = net(imgs)
-
-            tot += F.binary_cross_entropy_with_logits(targets_pred, targets).item()
-            pbar.update()
-
+    numBatches = 0
+    with torch.no_grad():
+        for i in range(0, len(val_idx) - batch_size + 1, batch_size):
+            imgs, targets = MakeBatch(states, val_idx[i:i+batch_size])
+            tot += F.binary_cross_entropy_with_logits(net(imgs), targets).item()
+            numBatches += 1
     net.train()
-    return tot / n_val
+    return tot / numBatches
 
 def train_net(net,
               device,
@@ -43,13 +35,18 @@ def train_net(net,
               val_percent,
               save_cp):
 
-    dataset = BoatPredictionDataset()
-    n_val = int(len(dataset) * val_percent)
-    n_train = len(dataset) - n_val
-    train, val = random_split(dataset, [n_train, n_val])
-    # dataset is a single RAM-resident array: workers would only re-pickle it per epoch
-    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
-    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True, drop_last=True)
+    statesArray, boardIndexArray = LoadGameStates()
+    numBoards = int(boardIndexArray[-1]) + 1
+    firstValBoard = numBoards - max(int(numBoards * val_percent), 1)
+
+    # the whole dataset stays on the device as uint8, batches are sliced and converted there
+    states = torch.from_numpy(statesArray).to(device)
+    boardIndex = torch.from_numpy(boardIndexArray).to(device)
+    # split by board: snapshots of one game must never span train and val
+    train_idx = (boardIndex < firstValBoard).nonzero().squeeze(1)
+    val_idx = (boardIndex >= firstValBoard).nonzero().squeeze(1)
+    n_train = len(train_idx)
+    n_val = len(val_idx)
 
     writer = SummaryWriter(comment=f'LR_{lr}_BS_{batch_size}')
     global_step = 0
@@ -70,15 +67,13 @@ def train_net(net,
 
     for epoch in range(epochs):
         net.train()
+        perm = torch.randperm(n_train, device=device)
 
         numItemSinceVal = 0
         epoch_loss = 0
         with tqdm(total=n_train, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
-            for batch in train_loader:
-                imgs = batch['X']
-                targets = batch['Y']
-                imgs = imgs.to(device=device, dtype=torch.float32)
-                targets = targets.to(device=device, dtype=torch.float32)
+            for i in range(0, n_train, batch_size):
+                imgs, targets = MakeBatch(states, train_idx[perm[i:i+batch_size]])
                 target_preds = net(imgs)
                 loss = criterion(target_preds, targets)
                 epoch_loss += loss.item()
@@ -92,10 +87,10 @@ def train_net(net,
 
                 pbar.update(imgs.shape[0])
                 global_step += 1
-                numItemSinceVal += batch_size
-                if numItemSinceVal > 300000:### Num item before validation (low as it require a GPU upload killing perf)
+                numItemSinceVal += imgs.shape[0]
+                if numItemSinceVal > 300000:### Num item before validation
                     numItemSinceVal = 0
-                    val_score = eval_net(net, val_loader, device)
+                    val_score = eval_net(net, states, val_idx, batch_size, device)
                     scheduler.step(val_score)
                     writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
                     logging.info('Validation BCE with logit loss: {}'.format(val_score))
@@ -135,6 +130,9 @@ if __name__ == '__main__':
     logging.info(f'Using device {device}')
 
     net = BoatPredictionUNet()
+    if args.load:
+        net.load_state_dict(torch.load(args.load, map_location=device))
+        logging.info(f'Model loaded from {args.load}')
     net.to(device=device)
 
     try:

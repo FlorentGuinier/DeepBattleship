@@ -1,29 +1,20 @@
 import numpy as np
 import torch
-from torch.utils.data import Dataset
 
 FIREDCHANNEL = 0
 BOATCHANNEL = 2
 
-class BoatPredictionDataset(Dataset):
+def LoadGameStates(states_path='../Data/gameStates.npy', board_index_path='../Data/boardIndex.npy'):
+    return np.load(states_path), np.load(board_index_path)
 
-    def __init__(self, states_path='../Data/gameStates.npy'):
-        self.states = np.load(states_path)
+def MakeBatch(states, indices):
+    fullGameStates = states[indices].permute(0, 3, 1, 2).float() / 255
 
-    def __len__(self):
-        return len(self.states)
+    # only boat state
+    boatStates = fullGameStates[:, BOATCHANNEL:BOATCHANNEL+1].clone()
 
-    def __getitem__(self, idx):
-        fullGameState = torch.from_numpy(self.states[idx]).permute(2, 0, 1).float() / 255
+    # remove un-hit boat definition
+    playerKnownStates = fullGameStates
+    playerKnownStates[:, BOATCHANNEL] = playerKnownStates[:, BOATCHANNEL] * playerKnownStates[:, FIREDCHANNEL]
 
-        # only boat state
-        boatState = fullGameState[BOATCHANNEL].clone().reshape((1, 10, 10))
-
-        # remove un-hit boat definition
-        playerKnownState = fullGameState.clone()
-        playerKnownState[BOATCHANNEL] = playerKnownState[BOATCHANNEL] * playerKnownState[FIREDCHANNEL]
-
-        return {
-            'X': playerKnownState,
-            'Y': boatState
-        }
+    return playerKnownStates, boatStates
