@@ -3,12 +3,16 @@ Experiment of DL based AI for the traditional battleship game using a small U-Ne
 
 ![Image description](Model/Model.png)
 
+To setup (once):
+* uv sync
+
 To Generate data:
-* python BattleStateGenerator.py
+* uv run python BattleStateGenerator.py
 
 To browse generated data:
-* python ViewGameStates.py
+* uv run python ViewGameStates.py
 
 To train:
-* python Model/train.py
+* cd Model
+* uv run python train.py
 
