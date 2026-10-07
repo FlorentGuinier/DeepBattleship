@@ -45,7 +45,7 @@ class BoatPredictionUNet(nn.Module):
         x = self.maxpool(conv3)      # -> 128x1x1
 
         # Bottleneck
-        self.conv_bottleneck(x)      # -> 128x1x1
+        x = self.conv_bottleneck(x)  # -> 128x1x1
 
         # Decoder
         x = self.upsampleSize2(x)        # -> 128x2x2
