@@ -91,13 +91,18 @@ def train_net(net,
                 if numItemSinceVal > 300000:### Num item before validation
                     numItemSinceVal = 0
                     val_score = eval_net(net, states, val_idx, batch_size, device)
-                    scheduler.step(val_score)
-                    writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
                     logging.info('Validation BCE with logit loss: {}'.format(val_score))
                     writer.add_scalar('Loss/test', val_score, global_step)
                     writer.add_images('sources', imgs, global_step)
                     writer.add_images('targets', targets, global_step)
                     writer.add_images('target_preds', target_preds, global_step)
+
+        # the scheduler steps once per epoch: stepping it per in-epoch validation collapses the LR
+        val_score = eval_net(net, states, val_idx, batch_size, device)
+        scheduler.step(val_score)
+        logging.info('Epoch {} validation BCE with logit loss: {}'.format(epoch + 1, val_score))
+        writer.add_scalar('Loss/test', val_score, global_step)
+        writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
 
         if save_cp:
             try:
@@ -115,7 +120,7 @@ def train_net(net,
 def get_args():
     parser = argparse.ArgumentParser(description='Train boat prediction net')
     parser.add_argument('-e', '--epochs', type=int, default=25, help='Number of epochs')
-    parser.add_argument('-b', '--batchsize', type=int, default=64, help='Batch size')
+    parser.add_argument('-b', '--batchsize', type=int, default=2048, help='Batch size')
     parser.add_argument('-l', '--learningrate', type=float, default=0.0001, help='Learning rate')
     parser.add_argument('-f', '--load', type=str, default=False, help='Load model from a .pth file')
     parser.add_argument('-v', '--validation', type=float, default=1.0, help='Percent of the data that is used as validation (0-100)')
