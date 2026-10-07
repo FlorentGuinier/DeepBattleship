@@ -6,6 +6,9 @@ Experiment of DL based AI for the traditional battleship game using a small U-Ne
 To Generate data:
 * python BattleStateGenerator.py
 
+To browse generated data:
+* python ViewGameStates.py
+
 To train:
 * python Model/train.py
 

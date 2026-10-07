@@ -13,7 +13,6 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader, random_split
 
-dir_img = '../Data/GameStates/'
 dir_checkpoint = 'Checkpoints/'
 
 def eval_net(net, loader, device):
@@ -48,8 +47,9 @@ def train_net(net,
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
-    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
-    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True, drop_last=True)
+    # dataset is a single RAM-resident array: workers would only re-pickle it per epoch
+    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
+    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True, drop_last=True)
 
     writer = SummaryWriter(comment=f'LR_{lr}_BS_{batch_size}')
     global_step = 0
