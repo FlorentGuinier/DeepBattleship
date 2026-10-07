@@ -9,11 +9,13 @@ parser.add_argument('-p', '--print', type=bool, default=False, required=False)
 parser.add_argument('-n', '--numInitialStates', type=int, default=50000, required=False)
 parser.add_argument('-s', '--numHitToSimulate', type=int, default=50, required=False)
 parser.add_argument('-c', '--minimumChanceToHitABoat', type=float, default=0.33, required=False)
+parser.add_argument('-t', '--chanceToTargetNeighborOfHit', type=float, default=0.5, required=False)
 args = parser.parse_args()
 shouldPrint = args.print
 numInitialStates = args.numInitialStates
 numHitToSimulate = args.numHitToSimulate
 minimumChanceToHitABoat = args.minimumChanceToHitABoat
+chanceToTargetNeighborOfHit = args.chanceToTargetNeighborOfHit
 
 # seed numpy for reproductibility
 random.seed(0)
@@ -38,6 +40,17 @@ def SaveState(shouldPrint, gameBoardName, gameBoard, numHit):
             print(gameBoard[:,y,BoatChannelIndex]//255)
     else:
         cv2.imwrite('Data\GameStates\gameBoard-'+gameBoardName+'s'+numHit+'-m'+str(int(minimumChanceToHitABoat*100))+'.png', gameBoard)
+
+
+def UnfiredNeighborsOfHits(gameBoard):
+    targets = []
+    for x in range(gridSize):
+        for y in range(gridSize):
+            if gameBoard[x,y,FiredAtChannelIndex] == 255 and gameBoard[x,y,BoatChannelIndex] == 255:
+                for nx, ny in ((x-1,y),(x+1,y),(x,y-1),(x,y+1)):
+                    if 0 <= nx < gridSize and 0 <= ny < gridSize and gameBoard[nx,ny,FiredAtChannelIndex] == 0:
+                        targets.append([nx, ny])
+    return targets
 
 
 def GenerateBoard():
@@ -96,7 +109,15 @@ def GenerateBoard():
         chanceToHitBoat = len(boatPos) / (len(boatPos) + len(noBoatPos))
         chanceToHitBoat = chanceToHitBoat if chanceToHitBoat > minimumChanceToHitABoat else minimumChanceToHitABoat
 
-        if random.random() < chanceToHitBoat:
+        #mimic real play: prefer extending known hits by firing at their unfired neighbors
+        targets = UnfiredNeighborsOfHits(gameBoard)
+        if targets and random.random() < chanceToTargetNeighborOfHit:
+            pos = random.choice(targets)
+            if pos in boatPos:
+                boatPos.remove(pos)
+            else:
+                noBoatPos.remove(pos)
+        elif random.random() < chanceToHitBoat:
             pos = boatPos.pop(random.randrange(len(boatPos)))
         else:
             pos = noBoatPos.pop(random.randrange(len(noBoatPos)))
